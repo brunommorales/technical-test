@@ -1,0 +1,8 @@
+case_cientista_de_dados/
+env/
+
+mr_health/data/*
+!mr_health/data/.gitkeep
+
+mr_health/output/*
+!mr_health/output/.gitkeep
