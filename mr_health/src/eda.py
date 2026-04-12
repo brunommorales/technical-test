@@ -1,6 +1,6 @@
-import pandas as pd
 from load_data import carregar_bases
 from prepare_data import (
+    tratar_item_pedido,
     unir_item_com_preco,
     calcular_total_item,
     calcular_total_pedido,
@@ -18,10 +18,13 @@ def mostrar_base(df, nome):
 
 def mostrar_qualidade(pedido, item_pedido, itens):
     print("\nNulos")
+
     print("\nPEDIDO")
     print(pedido.isna().sum())
+
     print("\nITEM_PEDIDO")
     print(item_pedido.isna().sum())
+
     print("\nITENS")
     print(itens.isna().sum())
 
@@ -39,11 +42,13 @@ def mostrar_qualidade(pedido, item_pedido, itens):
     )
 
     pedidos_fora = item_pedido.loc[
-        ~item_pedido["ID_PEDIDO"].isin(pedido["ID_PEDIDO"]), "ID_PEDIDO"
+        ~item_pedido["ID_PEDIDO"].isin(pedido["ID_PEDIDO"]),
+        "ID_PEDIDO"
     ].nunique()
 
     itens_fora = item_pedido.loc[
-        ~item_pedido["ID_ITEM"].isin(itens["ID_ITEM"]), "ID_ITEM"
+        ~item_pedido["ID_ITEM"].isin(itens["ID_ITEM"]),
+        "ID_ITEM"
     ].nunique()
 
     print("\nIntegridade")
@@ -52,10 +57,14 @@ def mostrar_qualidade(pedido, item_pedido, itens):
 
 
 def tratar_bases(pedido, item_pedido, itens):
-    item_pedido = item_pedido.drop_duplicates().copy()
+    item_pedido = tratar_item_pedido(item_pedido)
 
-    print("\nVALOR_TOTAL nulo em PEDIDO:", pedido["VALOR_TOTAL"].isna().sum(), "de", len(pedido))
-    print("Duplicatas exatas restantes em ITEM_PEDIDO:", item_pedido.duplicated().sum())
+    print(
+        "\nVALOR_TOTAL nulo em PEDIDO:",
+        pedido["VALOR_TOTAL"].isna().sum(),
+        "de",
+        len(pedido)
+    )
 
     base_itens = unir_item_com_preco(item_pedido, itens)
     base_itens = calcular_total_item(base_itens)
@@ -80,8 +89,11 @@ def analise_descritiva(base_itens, base_pedidos, demanda_diaria_item):
     )
 
     itens_mais_vendidos = (
-        demanda_diaria_item.groupby("ID_ITEM", as_index=False)["QUANTIDADE_TOTAL"]
-        .sum()
+        demanda_diaria_item.groupby("ID_ITEM", as_index=False)
+        .agg(
+            QUANTIDADE_TOTAL=("QUANTIDADE_TOTAL", "sum"),
+            VALOR_TOTAL_ITEM=("VALOR_TOTAL_ITEM", "sum")
+        )
         .sort_values("QUANTIDADE_TOTAL", ascending=False)
     )
 
@@ -95,7 +107,7 @@ def analise_descritiva(base_itens, base_pedidos, demanda_diaria_item):
     print("PRECO_UNITARIO nulo:", base_itens["PRECO_UNITARIO"].isna().sum())
     print("TOTAL_PEDIDO nulo:", base_pedidos["TOTAL_PEDIDO"].isna().sum())
 
-    return vendas_por_dia
+    return vendas_por_dia, itens_mais_vendidos
 
 
 def analisar_sazonalidade(vendas_por_dia):
@@ -122,7 +134,10 @@ def analisar_sazonalidade(vendas_por_dia):
         .rename(columns={"TOTAL_PEDIDO": "media_venda"})
     )
 
-    sazonalidade["ordem"] = sazonalidade["dia_semana"].map({dia: i for i, dia in enumerate(ordem)})
+    sazonalidade["ordem"] = sazonalidade["dia_semana"].map(
+        {dia: i for i, dia in enumerate(ordem)}
+    )
+
     sazonalidade = sazonalidade.sort_values("ordem").drop(columns="ordem")
 
     print("\nDias sem venda:", (serie["TOTAL_PEDIDO"] == 0).sum())
@@ -130,9 +145,7 @@ def analisar_sazonalidade(vendas_por_dia):
     print("\nMédia de vendas por dia da semana")
     print(sazonalidade)
 
-    print("\nLeitura final")
-    print("A base é curta e a sazonalidade mais visível é semanal.")
-    print("Para previsão de demanda, a estrutura DATA x ID_ITEM faz mais sentido.")
+    return sazonalidade
 
 
 if __name__ == "__main__":
@@ -144,8 +157,12 @@ if __name__ == "__main__":
 
     mostrar_qualidade(pedido, item_pedido, itens)
 
-    base_itens, base_pedidos, demanda_diaria_item = tratar_bases(pedido, item_pedido, itens)
+    base_itens, base_pedidos, demanda_diaria_item = tratar_bases(
+        pedido, item_pedido, itens
+    )
 
-    vendas_por_dia = analise_descritiva(base_itens, base_pedidos, demanda_diaria_item)
+    vendas_por_dia, itens_mais_vendidos = analise_descritiva(
+        base_itens, base_pedidos, demanda_diaria_item
+    )
 
     analisar_sazonalidade(vendas_por_dia)
