@@ -6,3 +6,5 @@ mr_health/data/*
 
 mr_health/output/*
 !mr_health/output/.gitkeep
+__pycache__/
+*.pyc
