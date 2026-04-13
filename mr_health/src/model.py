@@ -57,19 +57,32 @@ def treinar_e_avaliar(treino, teste):
     modelo = LinearRegression()
     modelo.fit(X_train, y_train)
 
-    pred = modelo.predict(X_test)
-    pred = np.clip(pred, 0, None)
+    pred_modelo = modelo.predict(X_test)
+    pred_modelo = np.clip(pred_modelo, 0, None)
 
-    mse = mean_squared_error(y_test, pred)
+    pred_baseline = teste["lag_7"].values
+    pred_baseline = np.clip(pred_baseline, 0, None)
 
-    metricas = pd.DataFrame([{
-        "modelo": "regressao_linear",
-        "MAE": round(mean_absolute_error(y_test, pred), 4),
-        "MSE": round(mse, 4),
-        "RMSE": round(np.sqrt(mse), 4),
-    }])
+    mse_modelo = mean_squared_error(y_test, pred_modelo)
+    mse_baseline = mean_squared_error(y_test, pred_baseline)
+
+    metricas = pd.DataFrame([
+        {
+            "modelo": "regressao_linear",
+            "MAE": round(mean_absolute_error(y_test, pred_modelo), 4),
+            "MSE": round(mse_modelo, 4),
+            "RMSE": round(np.sqrt(mse_modelo), 4),
+        },
+        {
+            "modelo": "baseline_semana_anterior",
+            "MAE": round(mean_absolute_error(y_test, pred_baseline), 4),
+            "MSE": round(mse_baseline, 4),
+            "RMSE": round(np.sqrt(mse_baseline), 4),
+        }
+    ])
 
     predicoes = teste[["DATA", "ID_ITEM", "QUANTIDADE_TOTAL"]].copy()
-    predicoes["PREDICAO"] = pred
+    predicoes["PREDICAO_MODELO"] = pred_modelo
+    predicoes["PREDICAO_BASELINE"] = pred_baseline
 
     return modelo, predicoes, metricas
